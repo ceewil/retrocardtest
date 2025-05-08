@@ -18,7 +18,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🔧 Logging + Generation Route
+// Logging + Generation Route
 app.post('/generate', upload.single('photo'), async (req, res) => {
   const character = req.body.character || '80s action hero';
 
@@ -34,7 +34,7 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
       size: "1024x1024",
     });
 
-    console.log("✅ OpenAI image response received");
+    console.log("✅ OpenAI image response received:", response.data);
 
     const imageUrl = response.data[0].url;
     res.json({ imageUrl });
