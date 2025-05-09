@@ -19,20 +19,22 @@ const openai = new OpenAI({
 // Character-specific prompt customization
 const customFields = {
   "Grendals": (req) => {
-    const trait = req.body.dominantTrait || "slimy";
-    const style = req.body.visualStyle || "toxic punk";
-    return `The Grendal trading card should feature a grotesque, mischievous creature styled after 1980s creature feature aesthetics.
+  const trait = req.body.dominantTrait || "slimy";
+  const style = req.body.visualStyle || "toxic punk";
 
-Include the following visual elements:
-- Portrait orientation, black card background
-- Green reptilian/mottled border around the card
-- Character centered in the frame, upper-body or bust focus
-- Pink-on-black character name banner at the top of the card
-- Red-on-black footer at the bottom that reads "GRENDALS TRADING CARDS"
-- Optional white circle in the bottom corner with a number
+  return `Create a vertical 9:16 trading card image titled "Grendals Trading Card" featuring a grotesque, mischievous gremlin-like creature inspired by the uploaded photo. Use a consistent design layout:
 
-The Grendal is ${trait} and styled in a ${style} aesthetic. This creature has exaggerated expressions and a chaotic vibe, suited for horror-humor collectibles. The final image should resemble a retro trading card with consistent layout and formatting.`;
-  },
+- Portrait orientation, black background
+- Green, mottled reptilian border
+- Pink-on-black name banner at the top
+- Red-on-black footer that reads "GRENDALS TRADING CARDS"
+- Optional white badge with a number in one corner
+- Character is centered and cropped at the torso
+- High-contrast lighting and saturated cartoon color style
+
+The Grendal should appear ${trait}, and its aesthetic should reflect a ${style} personality. Maintain exaggerated features and a chaotic or grotesquely humorous vibe, suitable for 1980s horror-comedy parody trading cards.`;
+}
+
 
   "Operation Bravo": (req) => {
     const weapon = req.body.weaponType || "tactical rifle";
