@@ -40,8 +40,18 @@ function generateGrendalName(trait, style) {
 async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png") {
   const response = await fetch(baseImgUrl);
   const buffer = Buffer.from(await response.arrayBuffer());
+
+  const canvasWidth = 768;
+  const canvasHeight = 1343;
+
+  // This places the image in the center visible cutout
+  const imageX = 49;
+  const imageY = 334;
+  const imageWidth = 670;
+  const imageHeight = 670;
+
   const svgText = `
-    <svg width="768" height="1343">
+    <svg width="${canvasWidth}" height="${canvasHeight}">
       <style>
         .title {
           font-family: 'Impact', sans-serif;
@@ -54,20 +64,21 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
         }
       </style>
       <text x="50%" y="1275" text-anchor="middle" class="title">${name}</text>
-    </svg>`;
+    </svg>
+  `;
 
-  const final = await sharp(buffer)
-    .resize(670, 670)
-    .extend({
-      top: 334,
-      bottom: 339,
-      left: 49,
-      right: 49,
+  const final = await sharp({
+    create: {
+      width: canvasWidth,
+      height: canvasHeight,
+      channels: 4,
       background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
+    }
+  })
     .composite([
+      { input: buffer, left: imageX, top: imageY, raw: undefined },
       { input: "Grendalstt.png", top: 0, left: 0 },
-      { input: Buffer.from(svgText), top: 0, left: 0 },
+      { input: Buffer.from(svgText), top: 0, left: 0 }
     ])
     .png()
     .toBuffer();
