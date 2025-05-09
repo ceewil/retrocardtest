@@ -1,7 +1,12 @@
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const OpenAI = require('openai');
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
@@ -9,61 +14,107 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use('/cards', express.static(path.join(__dirname, 'cards')));
 
 const upload = multer({ storage: multer.memoryStorage() });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Character-specific prompt customization
-const customFields = {
-  "Grendals": (req) => {
-  const trait = req.body.dominantTrait || "slimy";
-  const style = req.body.visualStyle || "toxic punk";
-
-  return `Create a vertical 9:16 trading card image titled "Grendals Trading Card" featuring a grotesque, mischievous gremlin-like creature inspired by the uploaded photo. Use a consistent design layout:
-
-- Portrait orientation, black background
-- Green, mottled reptilian border
-- Pink-on-black name banner at the top
-- Red-on-black footer that reads "GRENDALS TRADING CARDS"
-- Optional white badge with a number in one corner
-- Character is centered and cropped at the torso
-- High-contrast lighting and saturated cartoon color style
-
-The Grendal should appear ${trait}, and its aesthetic should reflect a ${style} personality. Maintain exaggerated features and a chaotic or grotesquely humorous vibe, suitable for 1980s horror-comedy parody trading cards.`;
+function generateGrendalName(trait, style) {
+  const traitWords = {
+    muscular: ["Flex", "Bulk", "Ripped", "Brawn"],
+    slimy: ["Sludge", "Goop", "Gloop", "Grease"],
+    sneaky: ["Skulk", "Creep", "Shade", "Whisp"]
+  };
+  const styleWords = {
+    "90's rapper": ["Mic", "G", "Fresh", "Rhymes"],
+    goth: ["Hex", "Fade", "Grave"],
+    punk: ["Spit", "Crash", "Stitch"]
+  };
+  const t = traitWords[trait.toLowerCase()] || [trait];
+  const s = styleWords[style.toLowerCase()] || [style];
+  const first = t[Math.floor(Math.random() * t.length)];
+  const last = s[Math.floor(Math.random() * s.length)];
+  return `${first} ${last}`;
 }
 
+async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png") {
+  const response = await fetch(baseImgUrl);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const svgText = `
+    <svg width="768" height="1343">
+      <style>
+        .title {
+          font-family: 'Impact', sans-serif;
+          font-size: 48px;
+          font-weight: bold;
+          fill: #ff0000;
+          stroke: #000000;
+          stroke-width: 2px;
+          paint-order: stroke;
+        }
+      </style>
+      <text x="50%" y="1275" text-anchor="middle" class="title">${name}</text>
+    </svg>`;
 
+  const final = await sharp(buffer)
+    .resize(670, 670)
+    .extend({
+      top: 334,
+      bottom: 339,
+      left: 49,
+      right: 49,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    .composite([
+      { input: "Grendalstt.png", top: 0, left: 0 },
+      { input: Buffer.from(svgText), top: 0, left: 0 },
+    ])
+    .png()
+    .toBuffer();
+
+  const outputPath = path.join(__dirname, "cards", outputFile);
+  fs.writeFileSync(outputPath, final);
+  return `/cards/${outputFile}`;
+}
+
+const customFields = {
+  "Grendals": (req) => {
+    const trait = req.body.dominantTrait || "slimy";
+    const style = req.body.visualStyle || "punk";
+    req.cardName = generateGrendalName(trait, style);
+    return `Create a vertical 9:16 trading card image of a grotesque gremlin-like character inspired by the uploaded photo.
+
+- Portrait orientation, black background
+- Green mottled border
+- Centered bust-level pose
+- High-contrast, saturated color cartoon look
+
+The Grendal should appear ${trait} and have a ${style} aesthetic. No text on the image. Leave space above and below for template overlay.`;
+  },
   "Operation Bravo": (req) => {
     const weapon = req.body.weaponType || "tactical rifle";
     const style = req.body.combatStyle || "close quarters combat";
     return `The figure is armed with a ${weapon} and specializes in ${style}.`;
   },
-
   "Trash Can Kids": (req) => {
     const item = req.body.favoriteItem || "soggy sandwich";
     const activity = req.body.favoriteActivity || "dumpster diving";
-    return `They love their ${item} and spend most days ${activity}. The design should parody collectible kids' cards from the 80s, with gross-out humor and warped personality traits.`;
+    return `They love their ${item} and spend most days ${activity}.`;
   }
 };
 
 app.post('/generate', upload.single('photo'), async (req, res) => {
   const character = req.body.character || '80s hero';
 
-  const basePrompt = `Create a highly stylized illustrated action figure card or parody trading card featuring a character that resembles the uploaded photo.`;
-
+  const basePrompt = `Create a stylized cartoon character portrait that resembles the uploaded photo.`;
   const themePrompt = {
-    "Operation Bravo": "The figure is a classic 1980s military hero with 'Kung Fu Grip', dressed in a retro green combat uniform and ready for battle. Include plastic accessories, packaging artwork, and explosive comic-style graphics.",
-    "Grendals": "A creepy, mutated gremlin-like creature featured on a collectible trading card. The layout should be consistent with horror-comedy cards of the 1980s.",
-    "Trash Can Kids": "A satirical, weird cartoon child with an exaggerated personality flaw. Package design should resemble a parody trading card with warped humor and grungy toy box elements.",
-  }[character] || "A retro-style collectible toy with dynamic card art.";
+    "Operation Bravo": "The figure is a classic 1980s military hero with 'Kung Fu Grip', dressed in a retro green combat uniform.",
+    "Grendals": "A creepy gremlin-like creature featured on a collectible trading card.",
+    "Trash Can Kids": "A satirical, weird cartoon child with exaggerated traits."
+  }[character] || "A retro-style collectible toy with bold card art.";
 
   const extras = (customFields[character]?.(req) || "");
   const prompt = `${basePrompt} ${themePrompt} ${extras}`;
-
-  console.log("🟢 Final prompt:", prompt);
 
   try {
     const response = await openai.images.generate({
@@ -74,8 +125,14 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
     });
 
     const imageUrl = response.data[0]?.url;
-    console.log("✅ Image URL:", imageUrl);
-    res.json({ imageUrl });
+
+    if (character === "Grendals") {
+      const filename = `grendal-${Date.now()}.png`;
+      const finalPath = await composeGrendalCard(imageUrl, req.cardName, filename);
+      res.json({ imageUrl: finalPath });
+    } else {
+      res.json({ imageUrl });
+    }
   } catch (err) {
     console.error("❌ OpenAI API Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Image generation failed" });
