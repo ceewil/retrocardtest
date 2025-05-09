@@ -16,13 +16,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Character-specific prompt customization
 const customFields = {
-  "Operation Bravo": () => {
-    const weapon = req.body.weaponType || "tactical rifle";
-    const style = req.body.combatStyle || "close quarters combat";
-    return `The figure is armed with a ${weapon} and specializes in ${style}.`;
-  },
-  "Grendals": () => {
+  "Grendals": (req) => {
     const trait = req.body.dominantTrait || "slimy";
     const style = req.body.visualStyle || "toxic punk";
     return `The Grendal trading card should feature a grotesque, mischievous creature styled after 1980s creature feature aesthetics.
@@ -37,7 +33,14 @@ Include the following visual elements:
 
 The Grendal is ${trait} and styled in a ${style} aesthetic. This creature has exaggerated expressions and a chaotic vibe, suited for horror-humor collectibles. The final image should resemble a retro trading card with consistent layout and formatting.`;
   },
-  "Trash Can Kids": () => {
+
+  "Operation Bravo": (req) => {
+    const weapon = req.body.weaponType || "tactical rifle";
+    const style = req.body.combatStyle || "close quarters combat";
+    return `The figure is armed with a ${weapon} and specializes in ${style}.`;
+  },
+
+  "Trash Can Kids": (req) => {
     const item = req.body.favoriteItem || "soggy sandwich";
     const activity = req.body.favoriteActivity || "dumpster diving";
     return `They love their ${item} and spend most days ${activity}. The design should parody collectible kids' cards from the 80s, with gross-out humor and warped personality traits.`;
@@ -46,6 +49,7 @@ The Grendal is ${trait} and styled in a ${style} aesthetic. This creature has ex
 
 app.post('/generate', upload.single('photo'), async (req, res) => {
   const character = req.body.character || '80s hero';
+
   const basePrompt = `Create a highly stylized illustrated action figure card or parody trading card featuring a character that resembles the uploaded photo.`;
 
   const themePrompt = {
@@ -54,7 +58,7 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
     "Trash Can Kids": "A satirical, weird cartoon child with an exaggerated personality flaw. Package design should resemble a parody trading card with warped humor and grungy toy box elements.",
   }[character] || "A retro-style collectible toy with dynamic card art.";
 
-  const extras = (customFields[character]?.() || "");
+  const extras = (customFields[character]?.(req) || "");
   const prompt = `${basePrompt} ${themePrompt} ${extras}`;
 
   console.log("🟢 Final prompt:", prompt);
@@ -67,8 +71,9 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
       size: "1024x1024",
     });
 
-    console.log("✅ Image URL:", response.data[0].url);
-    res.json({ imageUrl: response.data[0].url });
+    const imageUrl = response.data[0]?.url;
+    console.log("✅ Image URL:", imageUrl);
+    res.json({ imageUrl });
   } catch (err) {
     console.error("❌ OpenAI API Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Image generation failed" });
