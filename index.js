@@ -147,20 +147,49 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
     let backstory = "";
 
     if (character === "Grendals") {
-      backstory = await generateBackstory(req.cardName, req.cardTrait, req.cardStyle);
-    }
+  const canvas = require('canvas');
+  const { createCanvas, loadImage, registerFont } = canvas;
 
-    res.json({
-      imageUrl,
-      cardName: req.cardName,
-      grendalLevel: req.grendalLevel,
-      backstory
-    });
-  } catch (err) {
-    console.error("❌ OpenAI API Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Image generation failed" });
-  }
-});
+  // Load image from URL
+  const imageResponse = await fetch(imageUrl);
+  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+  const baseImage = await loadImage(imageBuffer);
+
+  // Set canvas size to match image
+  const width = baseImage.width;
+  const height = baseImage.height;
+  const finalCanvas = createCanvas(width, height + 220); // extra space for text
+  const ctx = finalCanvas.getContext("2d");
+
+  // Draw the original image
+  ctx.drawImage(baseImage, 0, 0);
+
+  // Draw overlay (background box)
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, height, width, 220);
+
+  // Add text styling
+  ctx.fillStyle = "red";
+  ctx.font = "bold 36px Arial";
+  ctx.fillText(req.cardName || "UNKNOWN", width / 2 - 150, height + 50);
+
+  ctx.fillStyle = "yellow";
+  ctx.font = "bold 24px Arial";
+  ctx.fillText(`Grendal Level: ${req.grendalLevel || 0}`, width / 2 - 150, height + 90);
+
+  ctx.fillStyle = "white";
+  ctx.font = "italic 18px Arial";
+  ctx.fillText(req.backstory || "No story provided.", width / 2 - 150, height + 130);
+
+  // Save image
+  const outputPath = path.join(__dirname, "cards", `grendal-${Date.now()}.png`);
+  const out = fs.createWriteStream(outputPath);
+  const stream = finalCanvas.createPNGStream();
+  stream.pipe(out);
+
+  await new Promise((resolve) => out.on("finish", resolve));
+  return res.json({ imageUrl: `/cards/${path.basename(outputPath)}` });
+}
 
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
