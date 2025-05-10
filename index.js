@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -70,7 +69,6 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
     </svg>
   `;
 
-  // Create a transparent canvas, then layer the resized image + template + name
   const finalBuffer = await sharp({
     create: {
       width: canvasWidth,
@@ -92,30 +90,31 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   return `/cards/${outputFile}`;
 }
 
-
-
 const customFields = {
   "Grendals": (req) => {
-    const trait = req.body.dominantTrait || "slimy";
-    const style = req.body.visualStyle || "punk";
+    const trait = (req.body.dominantTrait || "slimy").trim();
+    const style = (req.body.visualStyle || "punk").trim();
     req.cardName = generateGrendalName(trait, style);
-    return `Create a vertical 9:16 trading card image of a grotesque gremlin-like character inspired by the uploaded photo.
-
-- Portrait orientation, black background
-- Green mottled border
-- Centered bust-level pose
-- High-contrast, saturated color cartoon look
-
-The Grendal should appear ${trait} and have a ${style} aesthetic. No text on the image. Leave space above and below for template overlay.`;
+    return `
+      Create a vertical 9:16 trading card image of a grotesque gremlin-like character inspired by the uploaded photo.
+      - Portrait orientation, black background
+      - Green mottled border
+      - Centered bust-level pose
+      - High-contrast, saturated color cartoon look
+      The Grendal should appear ${trait} and have a ${style} aesthetic.
+      No text on the image. Leave space above and below for template overlay.
+    `.trim();
   },
+
   "Operation Bravo": (req) => {
-    const weapon = req.body.weaponType || "tactical rifle";
-    const style = req.body.combatStyle || "close quarters combat";
+    const weapon = (req.body.weaponType || "tactical rifle").trim();
+    const style = (req.body.combatStyle || "close quarters combat").trim();
     return `The figure is armed with a ${weapon} and specializes in ${style}.`;
   },
+
   "Trash Can Kids": (req) => {
-    const item = req.body.favoriteItem || "soggy sandwich";
-    const activity = req.body.favoriteActivity || "dumpster diving";
+    const item = (req.body.favoriteItem || "soggy sandwich").trim();
+    const activity = (req.body.favoriteActivity || "dumpster diving").trim();
     return `They love their ${item} and spend most days ${activity}.`;
   }
 };
@@ -130,15 +129,17 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
     "Trash Can Kids": "A satirical, weird cartoon child with exaggerated traits."
   }[character] || "A retro-style collectible toy with bold card art.";
 
-  const extras = (customFields[character]?.(req) || "");
-  const prompt = `${basePrompt} ${themePrompt} ${extras}`;
+  const extras = (customFields[character]?.(req) || "").trim();
+  const prompt = `${basePrompt} ${themePrompt} ${extras}`.trim();
+
+  console.log("🟢 Final prompt to OpenAI:", prompt);
 
   try {
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt,
       n: 1,
-      size: "1024x1024",
+      size: "1024x1024"
     });
 
     const imageUrl = response.data[0]?.url;
