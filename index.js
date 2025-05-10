@@ -41,14 +41,17 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   const response = await fetch(baseImgUrl);
   const buffer = Buffer.from(await response.arrayBuffer());
 
+  // Resize the image BEFORE compositing to avoid dimension mismatch errors
+  const resizedBuffer = await sharp(buffer)
+    .resize(670, 670, { fit: 'cover' })
+    .toBuffer();
+
   const canvasWidth = 768;
   const canvasHeight = 1343;
 
-  // This places the image in the center visible cutout
+  // Location and size for character image
   const imageX = 49;
   const imageY = 334;
-  const imageWidth = 670;
-  const imageHeight = 670;
 
   const svgText = `
     <svg width="${canvasWidth}" height="${canvasHeight}">
@@ -76,7 +79,7 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
     }
   })
     .composite([
-      { input: buffer, left: imageX, top: imageY, raw: undefined },
+      { input: resizedBuffer, top: imageY, left: imageX },
       { input: "Grendalstt.png", top: 0, left: 0 },
       { input: Buffer.from(svgText), top: 0, left: 0 }
     ])
@@ -87,6 +90,7 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   fs.writeFileSync(outputPath, final);
   return `/cards/${outputFile}`;
 }
+
 
 const customFields = {
   "Grendals": (req) => {
