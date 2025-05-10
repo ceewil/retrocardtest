@@ -38,21 +38,21 @@ function generateGrendalName(trait, style) {
 }
 
 async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png") {
-  const response = await fetch(baseImgUrl);
-  const buffer = Buffer.from(await response.arrayBuffer());
-
-  // Resize the image BEFORE compositing to avoid dimension mismatch errors
-  const resizedBuffer = await sharp(buffer)
-    .resize(670, 670, { fit: 'cover' })
-    .toBuffer();
-
   const canvasWidth = 768;
   const canvasHeight = 1343;
-
-  // Location and size for character image
   const imageX = 49;
   const imageY = 334;
+  const imageWidth = 670;
+  const imageHeight = 670;
 
+  // Fetch and resize the DALL·E image
+  const response = await fetch(baseImgUrl);
+  const originalBuffer = Buffer.from(await response.arrayBuffer());
+  const resizedBuffer = await sharp(originalBuffer)
+    .resize(imageWidth, imageHeight, { fit: "cover" }) // Enforce exact dimensions
+    .toBuffer();
+
+  // Generate the name text as an SVG overlay
   const svgText = `
     <svg width="${canvasWidth}" height="${canvasHeight}">
       <style>
@@ -70,7 +70,8 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
     </svg>
   `;
 
-  const final = await sharp({
+  // Create a transparent canvas, then layer the resized image + template + name
+  const finalBuffer = await sharp({
     create: {
       width: canvasWidth,
       height: canvasHeight,
@@ -87,9 +88,10 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
     .toBuffer();
 
   const outputPath = path.join(__dirname, "cards", outputFile);
-  fs.writeFileSync(outputPath, final);
+  fs.writeFileSync(outputPath, finalBuffer);
   return `/cards/${outputFile}`;
 }
+
 
 
 const customFields = {
