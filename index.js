@@ -24,13 +24,16 @@ function calculateGrendalLevel(trait, style) {
     punk: 30,
     bodyguard: 45,
     wizard: 38,
-    soul: 40
+    soul: 40,
+    inmate: 32,
+    sparkle: 28,
+    tank: 48
   };
 
   const baseTrait = baseScores[trait.toLowerCase()] || 30;
   const baseStyle = baseScores[style.toLowerCase()] || 30;
 
-  const multiplier = (Math.random() * 0.8 + 1.1).toFixed(2); // 1.1 to 1.9
+  const multiplier = (Math.random() * 0.8 + 1.1).toFixed(2); // 1.10 to 1.90
   const level = Math.round((baseTrait + baseStyle) * multiplier);
   return level;
 }
@@ -39,24 +42,29 @@ function generateGrendalName(trait, style) {
   const traitWords = {
     muscular: ["Flex", "Bulk", "Ripped", "Brawn"],
     slimy: ["Sludge", "Goop", "Gloop", "Grease"],
-    sneaky: ["Skulk", "Creep", "Shade", "Whisp"]
+    sneaky: ["Skulk", "Creep", "Shade", "Whisp"],
+    inmate: ["Shiv", "Tough", "Razor", "Cage"]
   };
+
   const styleWords = {
     "90's rapper": ["Mic", "G", "Fresh", "Rhymes"],
-    goth: ["Hex", "Fade", "Grave"],
-    punk: ["Spit", "Crash", "Stitch"],
-    bodyguard: ["Shield", "Tank", "Guard"],
-    soul: ["Groove", "Beat", "Soul"]
+    goth: ["Hex", "Fade", "Grave", "Shriek"],
+    punk: ["Spit", "Crash", "Stitch", "Nail"],
+    bodyguard: ["Shield", "Tank", "Guard", "Bouncer"],
+    soul: ["Groove", "Beat", "Soul", "Boogie"],
+    sparkle: ["Shine", "Glam", "Glitz", "Flash"]
   };
+
   const t = traitWords[trait.toLowerCase()] || [trait];
   const s = styleWords[style.toLowerCase()] || [style];
   const first = t[Math.floor(Math.random() * t.length)];
   const last = s[Math.floor(Math.random() * s.length)];
+
   return `${first} ${last}`;
 }
 
 function generateBackstory(name, trait, style) {
-  return `${name} was once a regular Gremlin, until they were transformed by ${style} culture and became incredibly ${trait}. Now, they're known for ${trait}-based antics across the underground scene.`;
+  return `${name} was once a regular Gremlin, until they were transformed by ${style} culture and became incredibly ${trait}. Now they’re known for ${trait}-based antics across the underground scene.`;
 }
 
 const customFields = {
@@ -69,22 +77,19 @@ const customFields = {
     req.backstory = generateBackstory(req.cardName, trait, style);
 
     return `Create a vertical 9:16 trading card image of a realistic gremlin-like character inspired by the uploaded photo.
-
-- Portrait orientation, black background
-- Green mottled border
-- Centered bust-level pose
-- Movie-style lighting and textures (realistic, not cartoonish)
-- No text on the image
-
-The Grendal should appear ${trait} and have a ${style} aesthetic. Leave space above and below for overlay.`;
+- Bust-level centered portrait
+- Black background, green mottled border
+- Movie-style lighting and texture detail
+- Character should appear ${trait} and have a ${style} visual aesthetic
+- No text in the image
+Leave clear space above and below the figure for overlay.`;
   }
 };
 
 app.post('/generate', upload.single('photo'), async (req, res) => {
   const character = req.body.character || 'Grendals';
-  const extras = (customFields[character]?.(req) || "");
-
-  const prompt = `Create a stylized character portrait that resembles the uploaded photo. ${extras}`;
+  const promptAddOn = (customFields[character]?.(req) || "");
+  const prompt = `Create a stylized character portrait that resembles the uploaded photo. ${promptAddOn}`;
 
   try {
     const response = await openai.images.generate({
