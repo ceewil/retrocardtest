@@ -48,8 +48,10 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   const response = await fetch(baseImgUrl);
   const originalBuffer = Buffer.from(await response.arrayBuffer());
   const resizedBuffer = await sharp(originalBuffer)
-    .resize(imageWidth, imageHeight, { fit: "cover" }) // Enforce exact dimensions
-    .toBuffer();
+ const resizedBuffer = await sharp(originalBuffer)
+  .resize(imageWidth, imageHeight, { fit: "cover" })
+  .png() // Force re-encoding as clean PNG
+  .toBuffer();
 
   // Generate the name text as an SVG overlay
   const svgText = `
