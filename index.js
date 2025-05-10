@@ -44,16 +44,16 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   const imageWidth = 670;
   const imageHeight = 670;
 
-  // Fetch and resize the DALL·E image
+  // Fetch and resize the DALL·E image with enforced PNG format
   const response = await fetch(baseImgUrl);
   const originalBuffer = Buffer.from(await response.arrayBuffer());
-  const resizedBuffer = await sharp(originalBuffer)
- const resizedBuffer = await sharp(originalBuffer)
-  .resize(imageWidth, imageHeight, { fit: "cover" })
-  .png() // Force re-encoding as clean PNG
-  .toBuffer();
 
-  // Generate the name text as an SVG overlay
+  const resizedBuffer = await sharp(originalBuffer)
+    .resize(imageWidth, imageHeight, { fit: "cover" }) // Resize to fit the frame
+    .png() // Strip EXIF metadata and enforce compatibility
+    .toBuffer();
+
+  // Generate the SVG for the name in the white bar
   const svgText = `
     <svg width="${canvasWidth}" height="${canvasHeight}">
       <style>
@@ -71,6 +71,7 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
     </svg>
   `;
 
+  // Create the composite image
   const finalBuffer = await sharp({
     create: {
       width: canvasWidth,
@@ -91,6 +92,7 @@ async function composeGrendalCard(baseImgUrl, name, outputFile = "final-card.png
   fs.writeFileSync(outputPath, finalBuffer);
   return `/cards/${outputFile}`;
 }
+
 
 const customFields = {
   "Grendals": (req) => {
