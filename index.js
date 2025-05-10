@@ -31,6 +31,23 @@ function generateGrendalName(trait, style) {
   return `${first} ${last}`;
 }
 
+function calculateGrendalLevel(trait, style) {
+  let score = 50;
+  const traitWeights = {
+    muscular: 20,
+    slimy: 10,
+    sneaky: 15
+  };
+  const styleWeights = {
+    punk: 10,
+    goth: 15,
+    "90's rapper": 20
+  };
+  score += traitWeights[trait.toLowerCase()] || 5;
+  score += styleWeights[style.toLowerCase()] || 5;
+  return score;
+}
+
 async function getAverageSkinTone(buffer) {
   const sharp = require('sharp');
   const { data } = await sharp(buffer).resize(10, 10).raw().toBuffer({ resolveWithObject: true });
@@ -55,11 +72,27 @@ function rgbToTone({ r, g, b }) {
   return "light skin tone";
 }
 
+async function generateBackstory(name, trait, style) {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      {
+        role: "user",
+        content: `Write a short, quirky backstory (2 sentences max) for a collectible creature card. Name: ${name}. Trait: ${trait}. Style: ${style}. Keep it funny or ironic.`
+      }
+    ]
+  });
+  return completion.choices[0]?.message.content.trim();
+}
+
 const customFields = {
   "Grendals": (req) => {
     const trait = req.body.dominantTrait || "slimy";
     const style = req.body.visualStyle || "punk";
     req.cardName = generateGrendalName(trait, style);
+    req.grendalLevel = calculateGrendalLevel(trait, style);
+    req.cardTrait = trait;
+    req.cardStyle = style;
     const skinToneText = req.extractedTone ? `The Grendal should have a ${req.extractedTone}, based on the photo.` : "";
     return `Create a vertical 9:16 trading card of a grotesque gremlin-like creature named ${req.cardName}.
 - Movie-realistic style
@@ -67,7 +100,7 @@ const customFields = {
 - Bust-level centered portrait
 - ${trait} body and ${style} visual aesthetic
 ${skinToneText}
-The card should feature a bold name bar at the bottom with red text and black outline, and space for a future backstory section.`;
+The card should have no text baked into the image. It will be overlaid via HTML.`;
   },
   "Operation Bravo": (req) => {
     const weapon = req.body.weaponType || "tactical rifle";
@@ -111,7 +144,18 @@ app.post('/generate', upload.single('photo'), async (req, res) => {
     });
 
     const imageUrl = response.data[0]?.url;
-    res.json({ imageUrl });
+    let backstory = "";
+
+    if (character === "Grendals") {
+      backstory = await generateBackstory(req.cardName, req.cardTrait, req.cardStyle);
+    }
+
+    res.json({
+      imageUrl,
+      cardName: req.cardName,
+      grendalLevel: req.grendalLevel,
+      backstory
+    });
   } catch (err) {
     console.error("❌ OpenAI API Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Image generation failed" });
